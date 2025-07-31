@@ -1,148 +1,130 @@
+import React, { useState, useEffect } from 'react';
+import shuffleArray from '../utils/shuffle'; // shuffle fonksiyonun
+import questionsData from '../data/questions'; // sorular
+import './Quiz.css'
+const Quiz = () => {
+  // Soruları rastgele sırala ve state'e ata
+  const [questions, setQuestions] = useState(() => shuffleArray(questionsData).slice(0, 5));
 
-import React, { useState, useEffect } from "react";
-import { Clock, CheckCircle, XCircle, RotateCcw, Trophy } from 'lucide-react';
-import './Quiz.css';
-
-const questionsData = [
-  {
-    question: "Hangi vitamin D vitamini olarak bilinir?",
-    options: ["A Vitamini", "B Vitamini", "C Vitamini", "Güneş Vitamini"],
-    answer: "Güneş Vitamini"
-  },
-  {
-    question: "Bir günde kaç bardak su içmek önerilir?",
-    options: ["4-6 bardak", "8-10 bardak", "12-14 bardak", "2-4 bardak"],
-    answer: "8-10 bardak"
-  },
-  {
-    question: "Protein açısından en zengin besin hangisidir?",
-    options: ["Tavuk eti", "Balık", "Yumurta", "Mercimek"],
-    answer: "Yumurta"
-  }
-];
-
-const shuffleArray = (array) => {
-  return [...array].sort(() => Math.random() - 0.5);
-};
-
-const QuizApp = () => {
-  const [questions, setQuestions] = useState([]);
-  const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [current, setCurrent] = useState(0); // aktif soru indeksi
+  const [selectedAnswer, setSelectedAnswer] = useState(null); // seçilen cevap
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [quizFinished, setQuizFinished] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false); // geri bildirim gösterme durumu
+  const [timeLeft, setTimeLeft] = useState(60); // saniye cinsinden timer
+  const [isFinished, setIsFinished] = useState(false);
 
+  const currentQuestion = questions[current];
+
+  // Timer için useEffect
   useEffect(() => {
-    setQuestions(shuffleArray(questionsData));
-  }, []);
+    if (isFinished) return;
 
-  useEffect(() => {
-    if (questions.length === 0 || quizFinished) return;
+    if (timeLeft === 0) {
+      handleNextQuestion(); // süre bittiğinde sonraki soruya geç
+      return;
+    }
 
-    setTimeLeft(60);
-    setSelectedOption(null);
-    setShowFeedback(false);
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev === 1) {
-          clearInterval(timer);
-          handleNextQuestion();
-          return 30;
-        }
-        return prev - 1;
-      });
+    const timerId = setTimeout(() => {
+      setTimeLeft(timeLeft - 1);
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [currentQIndex, questions, quizFinished]);
+    return () => clearTimeout(timerId);
+  }, [timeLeft, isFinished]);
 
-  const handleOptionClick = (option) => {
-    if (showFeedback) return;
-    setSelectedOption(option);
+  // Cevap seçildiğinde
+  const handleAnswer = (option) => {
+    if (selectedAnswer) return; // zaten cevaplandıysa engelle
+
+    setSelectedAnswer(option);
     setShowFeedback(true);
-    if (option === questions[currentQIndex].answer) setScore((prev) => prev + 1);
+
+    if (option === currentQuestion.answer) {
+      setScore(score + 1);
+    }
+
+    // 1.5 saniye sonra sonraki soruya geç
+    setTimeout(() => {
+      handleNextQuestion();
+    }, 1500);
   };
 
   const handleNextQuestion = () => {
-    if (currentQIndex + 1 < questions.length) {
-      setCurrentQIndex((prev) => prev + 1);
+    setShowFeedback(false);
+    setSelectedAnswer(null);
+    setTimeLeft(60);
+
+    if (current + 1 < questions.length) {
+      setCurrent(current + 1);
     } else {
-      setQuizFinished(true);
+      setIsFinished(true);
     }
   };
 
-  const handleRestart = () => {
+  const restartQuiz = () => {
     setQuestions(shuffleArray(questionsData));
-    setCurrentQIndex(0);
+    setCurrent(0);
+    setSelectedAnswer(null);
     setScore(0);
-    setQuizFinished(false);
-    setSelectedOption(null);
     setShowFeedback(false);
-    setTimeLeft(30);
+    setTimeLeft(60);
+    setIsFinished(false);
   };
 
-  if (questions.length === 0) return <div className="loader">Yükleniyor...</div>;
-
-  if (quizFinished) {
-    const percentage = Math.round((score / questions.length) * 100);
+  if (isFinished) {
     return (
       <div className="quiz-container">
-        <div className="result-box">
-          <div className="icon"><Trophy /></div>
-          <h2>Quiz Tamamlandı!</h2>
-          <p className="score">{score} / {questions.length}</p>
-          <p className="percentage">%{percentage} başarı oranı</p>
-          <div className="progress-bar"><div style={{ width: `${percentage}%` }}></div></div>
-          <p className="feedback">{percentage >= 80 ? "Mükemmel!" : percentage >= 60 ? "İyi iş!" : "Tekrar dene!"}</p>
-          <button onClick={handleRestart}><RotateCcw /> Tekrar Başlat</button>
+        <div className="quiz-card">
+          <h2 className="question-number">Test Tamamlandı!</h2>
+          <p className="question-title">
+            Toplam doğru cevap sayınız: <span className="score-number">{score} / {questions.length}</span>
+          </p>
+          <button className="next-button" onClick={restartQuiz}>
+            Tekrar Başlat
+          </button>
         </div>
       </div>
     );
   }
 
-  const currentQuestion = questions[currentQIndex];
-  const progress = ((currentQIndex + 1) / questions.length) * 100;
-
   return (
     <div className="quiz-container">
-      <div className="quiz-box">
-        <div className="quiz-header">
-          <div>Soru {currentQIndex + 1} / {questions.length}</div>
-          <div className={`timer ${timeLeft <= 10 ? 'urgent' : ''}`}><Clock /> {timeLeft}s</div>
-          <div className="progress-bar"><div style={{ width: `${progress}%` }}></div></div>
-          <h3>{currentQuestion.question}</h3>
+      <div className="quiz-card">
+        <div className="quiz-progress">
+          <span className="question-number">{current + 1}. Soru</span>
+          <span className={`timer ${timeLeft <= 10 ? 'warning' : ''}`}>
+            Süre: {timeLeft}s
+          </span>
         </div>
-        <div className="options">
-          {currentQuestion.options.map((option) => {
-            let className = "option";
+        <p className="question-title">{currentQuestion.question}</p>
+        <div className="options-container">
+          {currentQuestion.options.map((option, idx) => {
+            let className = 'option-button';
+
             if (showFeedback) {
-              if (option === currentQuestion.answer) className += " correct";
-              else if (option === selectedOption) className += " incorrect";
-              else className += " neutral";
+              if (option === currentQuestion.answer) {
+                className += ' correct';
+              } else if (option === selectedAnswer && option !== currentQuestion.answer) {
+                className += ' incorrect';
+              } else {
+                className += ' neutral';
+              }
             }
+
             return (
-              <button key={option} className={className} onClick={() => handleOptionClick(option)} disabled={showFeedback}>
-                <span>{option}</span>
-                {showFeedback && option === currentQuestion.answer && <CheckCircle />}
-                {showFeedback && option === selectedOption && option !== currentQuestion.answer && <XCircle />}
+              <button
+                key={idx}
+                className={className}
+                onClick={() => handleAnswer(option)}
+                disabled={!!selectedAnswer}
+              >
+                {option}
               </button>
             );
           })}
         </div>
-        {showFeedback && (
-          <div className="next-button">
-            <button onClick={handleNextQuestion}>
-              {currentQIndex + 1 === questions.length ? "Sonuçları Gör" : "Sonraki Soru"}
-            </button>
-          </div>
-        )}
-        <div className="score-display">Doğru Cevaplar: {score}</div>
       </div>
     </div>
   );
 };
 
-export default QuizApp;
+export default Quiz;

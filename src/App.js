@@ -3,6 +3,7 @@ import Home from "./components/Home";
 import Quiz from "./components/Quiz";
 import "./App.css";
 
+
 function App() {
   const [quizStarted, setQuizStarted] = useState(false);
 
